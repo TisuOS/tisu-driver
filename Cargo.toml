@@ -1,0 +1,14 @@
+[package]
+name = "tisu-driver"
+version = "0.1.0"
+authors = ["1363558876@qq.com <1363558876@qq.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["rlib"]
+
+[dependencies]
+tisu-memory = { path = "../tisu-memory" }
+tisu-sync = { path = "../tisu-sync" }
