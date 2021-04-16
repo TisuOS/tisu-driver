@@ -5,23 +5,23 @@
 #![allow(dead_code)]
 use core::mem::size_of;
 
-// Type values
-pub const VIRTIO_BLK_T_IN: u32 = 0;
-pub const VIRTIO_BLK_T_OUT: u32 = 1;
-pub const VIRTIO_BLK_T_FLUSH: u32 = 4;
-pub const VIRTIO_BLK_T_DISCARD: u32 = 11;
-pub const VIRTIO_BLK_T_WRITE_ZEROES: u32 = 13;
-pub const VIRTIO_BLK_F_RO: u32 = 5;
+use crate::config::PAGE_SIZE;
+
+#[repr(u32)]
+#[derive(Clone, Copy)]
+pub enum BlockFlag {
+	In = 0,
+	Out = 1,
+	Flush = 4,
+	Discard = 11,
+	WriteZeros = 13,
+	ReadOnly = 5,
+}
+
 pub const VIRTIO_RING_SIZE : usize = 1 << 7;
 pub const VIRTIO_F_RING_EVENT_IDX : u32 = 29;
-
-pub const VIRTIO_DESC_F_NEXT: u16 = 1;
-pub const VIRTIO_DESC_F_WRITE: u16 = 2;
-pub const VIRTIO_DESC_F_INDIRECT: u16 = 4;
-pub const VIRTIO_AVAIL_F_NO_INTERRUPT: u16 = 1;
-pub const VIRTIO_USED_F_NO_NOTIFY: u16 = 1;
-
-const PAGE_SIZE : usize = 4096;
+const VIRTIO_AVAIL_F_NO_INTERRUPT: u16 = 1;
+const VIRTIO_USED_F_NO_NOTIFY: u16 = 1;
 
 #[repr(C)]
 pub struct VirtQueue {
@@ -67,11 +67,13 @@ pub struct UsedElem {
 pub enum DescFlag {
 	Next = 1,
 	Write = 2,
+	Indirect = 4,
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct Header {
-	pub blktype:  u32,
+	pub blktype:  BlockFlag,
 	pub reserved: u32,
 	pub sector:   u64,
 }
@@ -106,6 +108,10 @@ impl VirtQueue {
 		let elem = self.used.ring[self.used_idx as usize % VIRTIO_RING_SIZE];
 		self.used_idx = self.used_idx.wrapping_add(1);
 		elem
+	}
+
+	pub fn desc_idx(&self)->u16 {
+		self.desc_idx
 	}
 }
 
