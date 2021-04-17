@@ -80,8 +80,8 @@ pub struct Block {
 //     }
 // }
 
-impl Driver for Block {
-    fn new(virtio_addr : usize, memory : &mut impl MemoryOp)->Self {
+impl Block {
+    pub fn new(virtio_addr : usize, memory : &mut impl MemoryOp)->Self {
 		let num = (size_of::<VirtQueue>() + PAGE_SIZE - 1) / PAGE_SIZE;
 		let queue = memory.kernel_page(num).unwrap() as *mut VirtQueue;
 		let header = unsafe {&mut *(virtio_addr as *mut VirtHeader)};
@@ -103,7 +103,9 @@ impl Driver for Block {
 		};
 		rt
     }
+}
 
+impl Driver for Block {
     fn handler(&mut self) {
 		if !self.int.pop() {return;}
 
@@ -121,7 +123,7 @@ impl Driver for Block {
 
 
 impl BlockDriver for Block {
-	fn write(&mut self, offset : usize, len : usize, data : &[u8]) {
+	fn sync_write(&mut self, offset : usize, len : usize, data : &[u8]) {
 		let idx = self.queue.desc_idx() as usize;
 		self.request_pool[idx] = Request::new(data, offset,true);
 		let rq = &mut self.request_pool[idx];
@@ -141,7 +143,7 @@ impl BlockDriver for Block {
 		// free(rq as *mut u8);
 	}
 
-	fn read(&mut self, offset : usize, len : usize, data : &mut [u8]) {
+	fn sync_read(&mut self, offset : usize, len : usize, data : &mut [u8]) {
 		let idx = self.queue.desc_idx() as usize;
 		self.request_pool[idx] = Request::new(data,offset,false);
 		let rq = &mut self.request_pool[idx];

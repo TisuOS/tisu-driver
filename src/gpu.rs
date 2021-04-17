@@ -4,12 +4,8 @@
 
 #![allow(dead_code)]
 use core::{cmp::min, mem::size_of};
-
-use crate::{
-    libs::{graphic::Pixel, shape::Rect},
-    memory::{alloc, alloc_kernel_page, config::PAGE_SIZE, free}};
 use tisu_sync::{Bool, Mutex};
-use super::{header::VirtHeader, queue::{DescFlag, VIRTIO_DESC_F_NEXT, VIRTIO_RING_SIZE, VirtQueue}};
+use super::{header::VirtHeader, queue::{DescFlag, VIRTIO_RING_SIZE, VirtQueue}};
 
 pub struct GPU{
 	header : &'static mut VirtHeader,

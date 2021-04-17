@@ -2,10 +2,7 @@
 //! 
 //! 2021年4月14日 zg
 
-use tisu_memory::{MemoryOp};
-
 pub trait Driver {
-    fn new(virtio_addr : usize, memory : &mut impl MemoryOp)->Self;
     /// 处理中断
     fn handler(&mut self);
     /// 通知中断
@@ -13,8 +10,8 @@ pub trait Driver {
 }
 
 pub trait BlockDriver : Driver {
-    fn write(&mut self, offset : usize, len : usize, data : &[u8]);
-    fn read(&mut self, offset : usize, len : usize, data : &mut [u8]);
+    fn sync_write(&mut self, offset : usize, len : usize, data : &[u8]);
+    fn sync_read(&mut self, offset : usize, len : usize, data : &mut [u8]);
 }
 
 pub trait InputDriver : Driver {
