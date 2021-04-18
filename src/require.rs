@@ -2,6 +2,8 @@
 //! 
 //! 2021年4月14日 zg
 
+use crate::{Rect, config::Pixel};
+
 pub trait Driver {
     /// 处理中断
     fn handler(&mut self);
@@ -22,8 +24,8 @@ pub trait InputDriver : Driver {
     fn get_scroll(&mut self)->u16;
 }
 
-// pub trait GPUDriver : Driver {
-//     fn draw_blend(&mut self, idx : usize, rect : Rect, buffer : *mut Pixel);
-//     fn draw_override(&mut self, idx : usize, rect : Rect, buffer : *mut Pixel);
-//     fn invalid(&mut self);
-// }
+pub trait GraphicDriver : Driver {
+    fn draw_blend(&mut self, rect : Rect, buffer : &[Pixel]);
+    fn draw_override(&mut self, rect : Rect, buffer : &[Pixel]);
+    fn refresh(&mut self);
+}

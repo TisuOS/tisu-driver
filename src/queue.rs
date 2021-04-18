@@ -78,6 +78,15 @@ pub struct Header {
 	pub sector:   u64,
 }
 
+impl Header {
+	pub fn default()->Self {
+		Self{
+			blktype : BlockFlag::In,
+			reserved : 0,
+			sector : 0,
+		}
+	}
+}
 
 impl VirtQueue {
     pub fn add_desc(&mut self, addr : u64, len : u32, flag : u16) {

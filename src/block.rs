@@ -2,12 +2,12 @@
 //! 
 //! 2021年3月30日 zg
 
-use core::{mem::size_of, ptr::slice_from_raw_parts};
+use core::{mem::size_of};
 use tisu_memory::{MemoryOp};
 use tisu_sync::Bool;
 use tisu_sync::Mutex;
 
-use crate::{config::PAGE_SIZE, queue::BlockFlag, require::{BlockDriver, Driver}};
+use crate::{config::PAGE_SIZE, pool::Pool, queue::BlockFlag, require::{BlockDriver, Driver}};
 
 use super::{
 	header::VirtHeader,
@@ -33,6 +33,19 @@ impl Clone for Request{
             data: self.data,
             status: self.status,
             lock: Mutex::new(),
+		}
+    }
+}
+
+impl Copy for Request{}
+
+impl Default for Request {
+    fn default() -> Self {
+		Self{
+		    header: Header::default(),
+		    data: 0 as *mut u8,
+		    status: 0,
+		    lock: Mutex::new(),
 		}
     }
 }
@@ -65,7 +78,7 @@ impl Request {
 pub struct Block {
 	header : &'static mut VirtHeader,
 	queue : &'static mut VirtQueue,
-	request_pool : &'static mut [Request],
+	request_pool : Pool<Request>,
 	pub int : Bool,
 }
 
@@ -90,15 +103,11 @@ impl Block {
 		header.set_page_size(PAGE_SIZE as u32);
 		header.set_pfn(0, (queue as u32) / PAGE_SIZE as u32);
 		header.driver_ok();
-		let addr = memory.kernel_page(
-			VIRTIO_RING_SIZE * size_of::<Request>() / PAGE_SIZE + 1
-		).unwrap() as *mut Request;
-		let addr = slice_from_raw_parts(addr, VIRTIO_RING_SIZE);
 
 		let rt = Self {
 			header,
 			queue : unsafe {&mut *queue},
-			request_pool : unsafe {&mut *(addr as *mut [Request])},
+			request_pool : Pool::default(),
 			int : Bool::new(),
 		};
 		rt
@@ -125,8 +134,8 @@ impl Driver for Block {
 impl BlockDriver for Block {
 	fn sync_write(&mut self, offset : usize, len : usize, data : &[u8]) {
 		let idx = self.queue.desc_idx() as usize;
-		self.request_pool[idx] = Request::new(data, offset,true);
-		let rq = &mut self.request_pool[idx];
+		let v = Request::new(data, offset,true);
+		let rq = self.request_pool.replace_ref(idx, v);
 		let header = &rq.header as *const Header;
 		let status = &rq.status as *const u8;
 		let mut flag = DescFlag::Next as u16;
@@ -145,8 +154,8 @@ impl BlockDriver for Block {
 
 	fn sync_read(&mut self, offset : usize, len : usize, data : &mut [u8]) {
 		let idx = self.queue.desc_idx() as usize;
-		self.request_pool[idx] = Request::new(data,offset,false);
-		let rq = &mut self.request_pool[idx];
+		let v = Request::new(data,offset,false);
+		let rq = self.request_pool.replace_ref(idx, v);
 		let header = &rq.header as *const Header;
 		let status = &rq.status as *const u8;
 		let mut flag = DescFlag::Next as u16;
