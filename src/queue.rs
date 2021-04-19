@@ -95,10 +95,10 @@ impl VirtQueue {
         else {next = (self.desc_idx + 1) % VIRTIO_RING_SIZE as u16}
 
         let desc = Descriptor {
-            addr: addr,
-            len: len,
+            addr,
+            len,
             flags: flag,
-            next: next,
+            next,
         };
         self.desc[self.desc_idx as usize] = desc;
         self.desc_idx = (self.desc_idx + 1) % VIRTIO_RING_SIZE as u16;

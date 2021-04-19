@@ -3,9 +3,11 @@
 //! 2021年3月30日
 
 #![allow(dead_code)]
+
+use crate::input::{InputEvent};
 pub const PAGE_SIZE : usize = 4096;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, Debug)]
 pub struct Rect {
     pub x1 : u32,
     pub y1 : u32,
@@ -94,4 +96,43 @@ impl Pixel{
             a:255,
         }
     }
+}
+
+#[derive(Debug)]
+pub enum SetupError {
+    FeatureFail,
+    RingSizeTooSmall,
+    Info(&'static str),
+}
+
+#[derive(Debug)]
+pub enum IoError {
+    RequestError,
+    Info(&'static str),
+}
+
+#[derive(Debug)]
+pub enum InterruptOk {
+    Null,
+    Block,
+    Graphic,
+    Input(InputEvent),
+}
+
+#[derive(Debug)]
+pub enum InterruptError {
+    NoInterrupt,
+    Info(&'static str),
+}
+
+#[derive(Debug)]
+pub enum InputType {
+    Event(InputEvent),
+    Status(InputEvent),
+}
+
+#[derive(Debug)]
+pub enum GraphicError {
+    InvalidRect(Rect),
+    BufferTooSmall(usize),
 }

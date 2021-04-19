@@ -22,19 +22,6 @@ pub struct Request {
 	pub lock : Mutex,
 }
 
-#[derive(Copy, Clone)]
-#[repr(usize)]
-pub enum DeviceType {
-    Unknown = 0,
-    Network = 1,
-    Block = 2,
-    Console = 3,
-    Entropy = 4,
-    Gpu = 16,
-    Input = 18,
-    Memory = 24,
-}
-
 impl DeviceType {
     pub fn from(num : usize)->Self {
         match num {
@@ -44,40 +31,6 @@ impl DeviceType {
             _ => {DeviceType::Unknown}
         }
     }
-}
-
-#[allow(dead_code)]
-#[repr(usize)]
-pub enum Offset {
-    MagicValue = 0x000,
-    Version = 0x004,
-    DeviceId = 0x008,
-    VendorId = 0x00c,
-    HostFeatures = 0x010,
-    HostFeaturesSel = 0x014,
-    GuestFeatures = 0x020,
-    GuestFeaturesSel = 0x024,
-    GuestPageSize = 0x028,
-    QueueSel = 0x030,
-    QueueNumMax = 0x034,
-    QueueNum = 0x038,
-    QueueAlign = 0x03c,
-    QueuePfn = 0x040,
-    QueueNotify = 0x050,
-    InterruptStatus = 0x060,
-    InterruptAck = 0x064,
-    Status = 0x070,
-    Config = 0x100,
-}
-
-#[allow(dead_code)]
-pub enum StatusField {
-	Acknowledge = 1,
-	Driver = 2,
-	Failed = 128,
-	FeaturesOk = 8,
-	DriverOk = 4,
-	DeviceNeedsReset = 64,
 }
 
 impl Offset {
@@ -294,6 +247,6 @@ pub fn run_interrupt(){
 
 use alloc::{prelude::v1::*};
 use crate::{libs::{graphic::Pixel, shape::Rect}};
-use tisu_sync::Mutex;
+use tisu_sync::SpinMutex;
 use super::{block::Block, gpu::GPU, header:: VirtHeader,
     input::input::{InputDevice}, queue::{Header}};

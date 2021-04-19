@@ -5,9 +5,9 @@
 #![allow(dead_code)]
 use core::{cmp::min, mem::size_of};
 use tisu_memory::MemoryOp;
-use tisu_sync::{Bool, Mutex};
+use tisu_sync::{Bool, SpinMutex};
 use super::{header::VirtHeader, queue::{DescFlag, VIRTIO_RING_SIZE, VirtQueue}};
-use crate::{config::{PAGE_SIZE, Pixel, Rect}, pool::Pool};
+use crate::{GraphicResult, InterruptResult, config::{GraphicError, InterruptOk, PAGE_SIZE, Pixel, Rect}, pool::Pool};
 use crate::require::GraphicDriver;
 use crate::Driver;
 
@@ -24,20 +24,20 @@ pub struct GPU{
     header_pool : Pool<ControllHeader>,
     width : usize,
     height : usize,
-    mutex : Mutex,
+    mutex : SpinMutex,
     int : Bool,
 }
 
 impl GPU {
     pub fn new(
-            addr : usize,
+            header : *mut VirtHeader,
             width : usize,
             height : usize,
             memory : &'static mut dyn MemoryOp,
         )->Self{
 		let num = (size_of::<VirtQueue>() + PAGE_SIZE - 1) / PAGE_SIZE;
 		let queue = memory.kernel_page(num).unwrap() as *mut VirtQueue;
-		let header = unsafe {&mut *(addr as *mut VirtHeader)};
+		let header = unsafe {&mut *header};
         let num = (width * height * size_of::<Pixel>() + PAGE_SIZE - 1) / PAGE_SIZE;
 		header.set_feature(!0).unwrap();
 		header.set_ring_size(VIRTIO_RING_SIZE as u32).unwrap();
@@ -58,7 +58,7 @@ impl GPU {
             header_pool : Pool::default(),
             width,
             height,
-            mutex: Mutex::new(),
+            mutex: SpinMutex::new(),
             int: Bool::new(),
         };
         rt.reset();
@@ -156,9 +156,9 @@ impl GPU {
 }
 
 impl Driver for GPU {
-    fn handler(&mut self) {
+    fn handler(&mut self)->InterruptResult {
         if !self.int.pop() {
-            return;
+            return Ok(InterruptOk::Graphic);
         }
         unsafe {
             while self.queue.is_pending() {
@@ -170,21 +170,23 @@ impl Driver for GPU {
             }
             self.mutex.unlock();
         }
+        Ok(InterruptOk::Graphic)
     }
 
-    fn pending(&mut self) {
+    fn pending(&mut self)->InterruptResult {
         self.int.set_true();
+        Ok(InterruptOk::Graphic)
     }
 }
 
 impl GraphicDriver for GPU {
-    fn draw_blend(&mut self, rect : Rect, buffer: &[Pixel]) {
+    fn draw_blend(&mut self, rect : Rect, buffer: &[Pixel])->GraphicResult {
         let x1 = rect.x1 as usize;
         let y1 = rect.y1 as usize;
         let x2 = rect.x2 as usize;
         let y2 = rect.y2 as usize;
         if x1 >= self.width || y1 > self.height{
-            return;
+            return Err(GraphicError::InvalidRect(rect));
         }
         let st = y1 * self.width;
         let ed = min(y2, self.height) * self.width;
@@ -212,15 +214,16 @@ impl GraphicDriver for GPU {
             }
         }
         self.mutex.unlock();
+        Ok(())
     }
 
-    fn draw_override(&mut self, rect : Rect, buffer: &[Pixel]) {
+    fn draw_override(&mut self, rect : Rect, buffer: &[Pixel])->GraphicResult {
         let x1 = rect.x1 as usize;
         let y1 = rect.y1 as usize;
         let x2 = rect.x2 as usize;
         let y2 = rect.y2 as usize;
         if x1 >= self.width || y1 > self.height{
-            return;
+            return Err(GraphicError::InvalidRect(rect));
         }
         let st = y1 * self.width;
         let ed = min(y2, self.height) * self.width;
@@ -238,6 +241,7 @@ impl GraphicDriver for GPU {
             row += 1;
         }
         self.mutex.unlock();
+        Ok(())
     }
 
     fn refresh(&mut self) {

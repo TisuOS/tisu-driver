@@ -17,7 +17,11 @@ impl<T:Clone + Copy + Default> Default for Pool<T> {
     }
 }
 
-impl<T:Clone + Default> Pool<T> {
+impl<T:Clone + Copy + Default> Pool<T> {
+    pub fn get(&self, idx : usize)->T {
+        self.queue[idx]
+    }
+
     pub fn replace_ref(&mut self, idx : usize, v : T)->&mut T {
         self.queue[idx] = v;
         &mut self.queue[idx]

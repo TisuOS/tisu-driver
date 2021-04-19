@@ -5,9 +5,17 @@
 use core::{mem::size_of};
 use tisu_memory::{MemoryOp};
 use tisu_sync::Bool;
-use tisu_sync::Mutex;
+use tisu_sync::SpinMutex;
 
-use crate::{config::PAGE_SIZE, pool::Pool, queue::BlockFlag, require::{BlockDriver, Driver}};
+use crate::{InterruptResult, IoResult, config::{
+		InterruptError,
+		InterruptOk,
+		IoError,
+		PAGE_SIZE
+	}, pool::Pool, queue::BlockFlag, require::{
+		BlockDriver,
+		Driver
+	}};
 
 use super::{
 	header::VirtHeader,
@@ -23,7 +31,7 @@ struct Request {
 	pub header: Header,
 	pub data:   *mut u8,
 	pub status: u8,
-	pub lock : Mutex,
+	pub lock : SpinMutex,
 }
 
 impl Clone for Request{
@@ -32,7 +40,7 @@ impl Clone for Request{
             header: self.header,
             data: self.data,
             status: self.status,
-            lock: Mutex::new(),
+            lock: SpinMutex::new(),
 		}
     }
 }
@@ -45,7 +53,7 @@ impl Default for Request {
 		    header: Header::default(),
 		    data: 0 as *mut u8,
 		    status: 0,
-		    lock: Mutex::new(),
+		    lock: SpinMutex::new(),
 		}
     }
 }
@@ -63,7 +71,7 @@ impl Request {
 			},
 			data : data as *const [u8] as *const u8 as *mut u8,
 			status : 111,
-		    lock: Mutex::new(),
+		    lock: SpinMutex::new(),
 		}
 		// rq.header.blktype = if write {BlockFlag::Out} else {BlockFlag::In};
 		// rq.header.sector = (offset / 512) as u64;
@@ -94,10 +102,10 @@ pub struct Block {
 // }
 
 impl Block {
-    pub fn new(virtio_addr : usize, memory : &mut impl MemoryOp)->Self {
+    pub fn new(header : *mut VirtHeader, memory : &mut impl MemoryOp)->Self {
 		let num = (size_of::<VirtQueue>() + PAGE_SIZE - 1) / PAGE_SIZE;
 		let queue = memory.kernel_page(num).unwrap() as *mut VirtQueue;
-		let header = unsafe {&mut *(virtio_addr as *mut VirtHeader)};
+		let header = unsafe {&mut *(header)};
 		header.set_feature(!(1 << BlockFlag::ReadOnly as u32)).unwrap();
 		header.set_ring_size(VIRTIO_RING_SIZE as u32).unwrap();
 		header.set_page_size(PAGE_SIZE as u32);
@@ -115,26 +123,35 @@ impl Block {
 }
 
 impl Driver for Block {
-    fn handler(&mut self) {
-		if !self.int.pop() {return;}
+    fn handler(&mut self)->InterruptResult {
+		if !self.int.pop() {return Ok(InterruptOk::Block);}
 
 		while self.queue.is_pending() {
 			let elem = self.queue.next_elem();
 			let rq = self.queue.desc[elem.id as usize].addr as *mut Request;
+			if unsafe {(*rq).status != 0} {
+				return Err(InterruptError::NoInterrupt);
+			}
 			unsafe {(*rq).lock.unlock()}
 		}
+		Ok(InterruptOk::Block)
     }
 
-    fn pending(&mut self) {
+    fn pending(&mut self)->InterruptResult {
 		self.int.set_true();
+		Ok(InterruptOk::Block)
     }
 }
 
 
 impl BlockDriver for Block {
-	fn sync_write(&mut self, offset : usize, len : usize, data : &[u8]) {
+	fn sync_write(&mut self, offset : usize, len : usize, data : &[u8])->IoResult {
 		let idx = self.queue.desc_idx() as usize;
 		let v = Request::new(data, offset,true);
+		let ori = self.request_pool.get(idx);
+		if ori.status != 0 {
+			return Err(IoError::RequestError);
+		}
 		let rq = self.request_pool.replace_ref(idx, v);
 		let header = &rq.header as *const Header;
 		let status = &rq.status as *const u8;
@@ -149,12 +166,17 @@ impl BlockDriver for Block {
 		self.header.notify();
 		rq.lock.lock();
 		rq.lock.unlock();
+		Ok(())
 		// free(rq as *mut u8);
 	}
 
-	fn sync_read(&mut self, offset : usize, len : usize, data : &mut [u8]) {
+	fn sync_read(&mut self, offset : usize, len : usize, data : &mut [u8])->IoResult {
 		let idx = self.queue.desc_idx() as usize;
 		let v = Request::new(data,offset,false);
+		let ori = self.request_pool.get(idx);
+		if ori.status != 0 {
+			return Err(IoError::Info(&"Request pool is full"));
+		}
 		let rq = self.request_pool.replace_ref(idx, v);
 		let header = &rq.header as *const Header;
 		let status = &rq.status as *const u8;
@@ -169,6 +191,7 @@ impl BlockDriver for Block {
 		self.header.notify();
 		rq.lock.lock();
 		rq.lock.unlock();
+		Ok(())
 		// free(rq as *mut u8);
 	}
 }

@@ -2,6 +2,8 @@
 //! 
 //! 2021年3月28日 zg
 
+use crate::config::SetupError;
+
 
 #[allow(dead_code)]
 pub enum StatusField {
@@ -48,7 +50,7 @@ pub struct VirtHeader {
 }
 
 impl VirtHeader {
-    pub fn set_feature(&mut self, guest_feat : u32)->Result<(), ()> {
+    pub fn set_feature(&mut self, guest_feat : u32)->Result<(), SetupError> {
         self.status = 0;
         self.status = StatusField::Acknowledge.val32();
         self.status |= StatusField::DriverOk.val32();
@@ -56,14 +58,14 @@ impl VirtHeader {
         self.status |= StatusField::FeaturesOk.val32();
         let status_ok = self.status;
         if status_ok & StatusField::FeaturesOk.val32() == 0 {
-            return Err(());
+            return Err(SetupError::FeatureFail);
         }
         Ok(())
     }
 
-    pub fn set_ring_size(&mut self, size : u32)->Result<(), ()> {
+    pub fn set_ring_size(&mut self, size : u32)->Result<(), SetupError> {
         if self.queue_num_max < size {
-            Err(())
+            Err(SetupError::RingSizeTooSmall)
         }
         else {
             self.queue_num = size;
