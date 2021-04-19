@@ -9,7 +9,7 @@ mod input;
 mod pool;
 
 use config::{GraphicError, IoError};
-pub use config::{InterruptError, InterruptOk};
+pub use config::{InterruptError, InterruptOk, DeviceType};
 pub use header::VirtHeader;
 pub use queue::VirtQueue;
 pub use block::Block;

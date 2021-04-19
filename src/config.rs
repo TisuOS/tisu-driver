@@ -136,3 +136,26 @@ pub enum GraphicError {
     InvalidRect(Rect),
     BufferTooSmall(usize),
 }
+
+#[derive(Copy, Clone)]
+pub enum DeviceType {
+    Unknown = 0,
+    Network = 1,
+    Block = 2,
+    Console = 3,
+    Entropy = 4,
+    Gpu = 16,
+    Input = 18,
+    Memory = 24,
+}
+
+impl DeviceType {
+    pub fn from(num : usize)->Self {
+        match num {
+            2 => {DeviceType::Block}
+            16 => {DeviceType::Gpu}
+            18 => {DeviceType::Input}
+            _ => {DeviceType::Unknown}
+        }
+    }
+}
