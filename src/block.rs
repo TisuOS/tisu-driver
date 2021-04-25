@@ -87,6 +87,7 @@ pub struct Block {
 	header : &'static mut VirtHeader,
 	queue : &'static mut VirtQueue,
 	request_pool : Pool<Request>,
+	mutex : SpinMutex,
 	pub int : Bool,
 }
 
@@ -116,6 +117,7 @@ impl Block {
 			header,
 			queue : unsafe {&mut *queue},
 			request_pool : Pool::default(),
+			mutex : SpinMutex::new(),
 			int : Bool::new(),
 		};
 		rt
@@ -127,12 +129,14 @@ impl Driver for Block {
 		if !self.int.pop() {return Ok(InterruptOk::Block);}
 
 		while self.queue.is_pending() {
+			self.mutex.lock();
 			let elem = self.queue.next_elem();
 			let rq = self.queue.desc[elem.id as usize].addr as *mut Request;
 			if unsafe {(*rq).status != 0} {
 				return Err(InterruptError::NoInterrupt);
 			}
 			unsafe {(*rq).lock.unlock()}
+			self.mutex.unlock();
 		}
 		Ok(InterruptOk::Block)
     }
@@ -146,6 +150,7 @@ impl Driver for Block {
 
 impl BlockDriver for Block {
 	fn sync_write(&mut self, offset : usize, len : usize, data : &[u8])->IoResult {
+		self.mutex.lock();
 		let idx = self.queue.desc_idx() as usize;
 		let v = Request::new(data, offset,true);
 		let ori = self.request_pool.get(idx);
@@ -161,6 +166,7 @@ impl BlockDriver for Block {
 		self.queue.add_desc(data as *const [u8] as *const u8 as u64, len as u32, flag);
 		flag = DescFlag::Write as u16;
 		self.queue.add_desc(status as u64, 1, flag);
+		self.mutex.unlock();
 		self.header.notify();
 		rq.lock.lock();
 		self.header.notify();
@@ -171,6 +177,7 @@ impl BlockDriver for Block {
 	}
 
 	fn sync_read(&mut self, offset : usize, len : usize, data : &mut [u8])->IoResult {
+		self.mutex.lock();
 		let idx = self.queue.desc_idx() as usize;
 		let v = Request::new(data,offset,false);
 		let ori = self.request_pool.get(idx);
@@ -187,6 +194,7 @@ impl BlockDriver for Block {
 		self.queue.add_desc(data as *const [u8] as *const u8 as u64, len as u32, flag);
 		flag = DescFlag::Write as u16;
 		self.queue.add_desc(status as u64, 1, flag);
+		self.mutex.unlock();
 		rq.lock.lock();
 		self.header.notify();
 		rq.lock.lock();
