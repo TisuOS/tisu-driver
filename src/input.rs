@@ -156,10 +156,10 @@ impl Driver for InputDevice {
             let ref elem = self.event_queue.next_elem();
             let ref desc = self.event_queue.desc[elem.id as usize];
             let event = unsafe {(desc.addr as *const InputEvent).as_ref().unwrap()};
+            self.fill_event(elem.id as usize);
             if event.code == 0 && event.value == 0 {
                 continue;
             }
-            self.fill_event(elem.id as usize);
             rt = Ok(InterruptOk::Input(*event));
             break;
         }
