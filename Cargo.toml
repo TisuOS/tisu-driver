@@ -10,7 +10,7 @@ edition = "2018"
 crate-type = ["rlib"]
 
 [dependencies]
-tisu-memory = { path = "../tisu-memory" }
-tisu-sync = { path = "../tisu-sync" }
-# tisu-memory = { git = "https://github.com/TisuOS/tisu-memory", tag = "v2.0" }
-# tisu-sync = { git = "https://github.com/TisuOS/tisu-sync", tag = "v1.0" }
+# tisu-memory = { path = "../tisu-memory" }
+# tisu-sync = { path = "../tisu-sync" }
+tisu-memory = { git = "https://github.com/TisuOS/tisu-memory", tag = "v2.0" }
+tisu-sync = { git = "https://github.com/TisuOS/tisu-sync", tag = "v1.0" }
