@@ -91,17 +91,6 @@ pub struct Block {
 	pub int : Bool,
 }
 
-// impl Clone for Block {
-//     fn clone(&self) -> Self {
-//         Block{
-// 			header : unsafe{&mut *(self.header as *const VirtHeader as usize as *mut VirtHeader)},
-// 			queue : unsafe{&mut *(self.queue as *const VirtQueue as usize as *mut VirtQueue)},
-// 			int : Bool::new(),
-//             pin_idx: self.pin_idx,
-// 		}
-//     }
-// }
-
 impl Block {
     pub fn new(header : *mut VirtHeader, memory : &mut impl MemoryOp)->Self {
 		let num = (size_of::<VirtQueue>() + PAGE_SIZE - 1) / PAGE_SIZE;
@@ -167,9 +156,7 @@ impl BlockDriver for Block {
 		flag = DescFlag::Write as u16;
 		self.queue.add_desc(status as u64, 1, flag);
 		self.mutex.unlock();
-		self.header.notify();
-		rq.lock.lock();
-		self.header.notify();
+		self.header.notify(0);
 		rq.lock.lock();
 		rq.lock.unlock();
 		Ok(())
@@ -196,7 +183,7 @@ impl BlockDriver for Block {
 		self.queue.add_desc(status as u64, 1, flag);
 		self.mutex.unlock();
 		rq.lock.lock();
-		self.header.notify();
+		self.header.notify(0);
 		rq.lock.lock();
 		rq.lock.unlock();
 		Ok(())

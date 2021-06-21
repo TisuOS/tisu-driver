@@ -47,6 +47,18 @@ pub struct VirtHeader {
     interrupt_ack : u32,
     rev4 : [u32;2],
     status : u32,
+    rev5 : [u32;3],
+    queue_desc_low : u32,
+    queue_desc_high : u32,
+    rev6 : [u32;2],
+    queue_driver_low : u32,
+    queue_driver_high : u32,
+    rev7 : [u32;2],
+    queue_device_low : u32,
+    queue_device_hgih : u32,
+    rev8 : [u32;2],
+    config_generation : u32,
+    rev9 : [u32;11],
 }
 
 impl VirtHeader {
@@ -86,7 +98,11 @@ impl VirtHeader {
         self.status = StatusField::DriverOk.val32();
     }
 
-    pub fn notify(&mut self) {
-        self.queue_notify = 0;
+    pub fn notify(&mut self, idx : u32) {
+        self.queue_notify = idx;
+    }
+
+    pub fn config_address(&self)->usize {
+        self as *const Self as *const u8 as usize + 0x100
     }
 }

@@ -140,7 +140,7 @@ impl GPU {
 
     /// 发送 QueueNotify
     fn run(&mut self){
-        self.header.notify();
+        self.header.notify(0);
     }
 
     fn fill_rect(&mut self, x : usize, y : usize, width : usize, height : usize, color : Pixel){

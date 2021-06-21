@@ -114,6 +114,7 @@ pub enum IoError {
 #[derive(Debug)]
 pub enum InterruptOk {
     Null,
+    Net,
     Block,
     Graphic,
     Input(InputEvent),
@@ -155,6 +156,7 @@ impl DeviceType {
             2 => {DeviceType::Block}
             16 => {DeviceType::Gpu}
             18 => {DeviceType::Input}
+            1 => {DeviceType::Network}
             _ => {DeviceType::Unknown}
         }
     }

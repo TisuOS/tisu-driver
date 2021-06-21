@@ -21,3 +21,8 @@ pub trait GraphicDriver : Driver {
     fn draw_override(&mut self, rect : Rect, buffer : &[Pixel])->GraphicResult;
     fn refresh(&mut self);
 }
+
+pub trait NetDriver : Driver {
+    fn send(&mut self, data : &[u8]);
+    fn mac(&self)->usize;
+}
